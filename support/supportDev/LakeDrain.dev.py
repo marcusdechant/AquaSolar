@@ -1,53 +1,83 @@
-#!/bin/python3/AquaSolar
+#!/bin/python3/AquaSolar/dev
 
+#AquaSolar Project
+#Indoor Garden Automation
+#Marcus Dechant (c)
+#LakeDrain.dev.py
+#Manual Pump Activation
+#v1.0.1
+
+#verbose
+script = 'LakeDrain.dev.py'
+v = 'v1.0.1'
+author = 'Marcus Dechant (c)'
+verbose =('\n'+script+' - ('+v+') - '+author+'\n')
+print(verbose)
+
+#Import List
 import RPi.GPIO as gpio
 import time
 sleep = time.sleep
 
+#GPIO Constructors
 warn = gpio.setwarnings
 mode = gpio.setmode
 board = gpio.BOARD
 setup = gpio.setup
 out = gpio.OUT
-output = gpio.output
+put = gpio.output
 low = gpio.LOW
 high = gpio.HIGH
 clean = gpio.cleanup
 
+#Relay Setup
 warn(False)
-
 pin3 = 13
 mode(board)
 setup(pin3, out)
 
+#Main Process
 delay = 1
 while True:
-    user1 = input('\nMinutes or Seconds (M or S)?\n')
-    if user1 == 'M' or user1 == 'S':
+    #Minute or Second
+    user1 = input('Minutes or Seconds (M or S)?\n')
+    #Script will accept any case input
+    user1 = user1.lower()
+    #move on if user inputs eith m or s
+    if (user1 == 'm') or (user1 == 's'):
         break
+    #Input Error
     else:
         print('\nError. Please Enter M or S.')
+
+#Amount of Time
 user2 = int(input('\nDuration?\n'))
+
 try:
-    output(pin3, low)
-    a = 0
+    #Activate Pump
+    put(pin3, low)
+    count = 0
     print('\nPump On.\n')
-    if user1 == 'M':
-        b = (user2 * 60)
-        c = ' Minutes. '
+    #If user selects minutes
+    if user1 == 'm':
+        left = (user2 * 60)
+        unit = ' Minutes. '
+    #If user selects seconds
     else:
-        b = user2
-        c = ' Seconds. '
-    while (a < b):
-        a += 1 
-        d = (b - a)
-        print('Running for ' + str(a) + c + str(d) + ' left.')
+        left = user2
+        unit = ' Seconds. '
+    #Running Loop
+    while (count < left):
+        count += 1 
+        diff = (left - count)
+        print('Running for '+str(count)+unit+str(diff)+' remaining.')
         sleep(delay)
+        
 except KeyboardInterrupt:
         print()
         pass
-output(pin3, high)
+#Pump is off
+put(pin3, high)
 print('\nPump Off.\n')
 clean()
-print()
 exit(0)
