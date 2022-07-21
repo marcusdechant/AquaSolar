@@ -1,68 +1,57 @@
-#!/bin/python
-
-#Start Up Variables
-script = 'lightswitch.py'
-by = 'By: Marcus Dechant'
-v = '3'
-project = 'AQUASOLAR'
-purpose = 'Manual Relay Light Control'
-
-#Import List
+#!/bin/python/AquaSolar
+script='LightSwitch.py'
+v='v0.3.2'
+author='Marcus Dechant (c)'
+verbose=('\n'+script+' - ('+v+') - '+author+'\n')
+print(verbose)
 import RPi.GPIO as GPIO
 import time
-
-#GPIO Allocation
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
-PIN_RC4_BCM = 17
-PIN_RC1_BCM = 23
-GPIO.setup(PIN_RC1_BCM, GPIO.OUT)
-GPIO.setup(PIN_RC4_BCM, GPIO.OUT)
-
-#Startup
-wait = 0.25
-print('\n' + script + ' ' + v)
-time.sleep(wait)
-print(project)
-time.sleep(wait)
-print(by)
-time.sleep(wait)
-print(purpose + '\n')
-time.sleep(wait)
-
-#User Input
-channel = input('1 (Plant Light) or 2 (Box Light) or 3 (Both)?\n')
-switch = input('On or Off?\n')
-
-#Process Run
-if (channel == '1'):
-    if (switch == 'On') or (switch == 'on') or (switch == 'ON'):
-        GPIO.output(PIN_RC4_BCM, GPIO.HIGH)
+sleep=time.sleep
+warn=GPIO.setwarnings
+mode=GPIO.setmode
+board=GPIO.BOARD
+setup=GPIO.setup
+out=GPIO.OUT
+put=GPIO.output
+low=GPIO.LOW
+high=GPIO.HIGH
+clean=GPIO.cleanup
+warn(False)
+mode(board)
+pin4=11
+pin1=16
+setup(pin4,out)
+setup(pin1,out)
+channel=input('1 (Plant Light) or 2 [EMPTY] or 3 (Both)?\n')
+switch=input('On or Off?\n')
+if(channel=='1'):
+    if(switch=='On')or(switch=='on')or(switch=='ON'):
+        put(pin4,high)
         print('Light is On!')
-    elif (switch == 'Off') or (switch == 'off') or (switch == 'OFF'):
-        GPIO.output(PIN_RC4_BCM, GPIO.LOW)
+    elif(switch=='Off')or(switch=='off')or(switch=='OFF'):
+        put(pin4,low)
         print('Light is Off!')
     else:
-        print ('Invalid Input.')
+        print('Invalid Input.')
         exit(0)
-elif (channel == '2'):
-    if (switch == 'On') or (switch == 'on') or (switch == 'ON'):
-        GPIO.output(PIN_RC1_BCM, GPIO.HIGH)
+elif(channel=='2'):
+    if(switch=='On')or (switch == 'on') or (switch == 'ON'):
+        put(pin1, high)
         print('Light is On!')
     elif (switch == 'Off') or (switch == 'off') or (switch == 'OFF'):
-        GPIO.output(PIN_RC1_BCM, GPIO.LOW)
+        put(pin1, low)
         print('Light is Off!')
     else:
         print ('Invalid Input.')
         exit(0)
 elif (channel == '3'):
     if (switch == 'On') or (switch == 'on') or (switch == 'ON'):
-        GPIO.output(PIN_RC1_BCM, GPIO.HIGH)
-        GPIO.output(PIN_RC4_BCM, GPIO.HIGH)
+        put(pin4, high)
+        put(pin1, high)
         print('Light is On!')
     elif (switch == 'Off') or (switch == 'off') or (switch == 'OFF'):
-        GPIO.output(PIN_RC1_BCM, GPIO.LOW)
-        GPIO.output(PIN_RC4_BCM, GPIO.LOW)
+        put(pin4, low)
+        put(pin1, low)
         print('Light is Off!')
     else:
         print ('Invalid Input.')
