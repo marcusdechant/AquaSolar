@@ -1,4 +1,18 @@
-#!/bin/python3/AquaSolar
+#!/bin/python3/AquaSolar/dev
+
+#AquaSolar Project
+#Indoor Garden Automation
+#Marcus Dechant (c)
+#ESO.dev.py
+#Emergency Shut Off
+#v3.0.1
+
+#verbose
+script = 'ESO.dev.py'
+v = 'v3.0.1'
+author = 'Marcus Dechant (c)'
+verbose =('\n'+script+' - ('+v+') - '+author+'\n')
+print(verbose)
 
 #EMERGENCY SHUTOFF 
 #Will turn all Relays to Default Position
@@ -10,7 +24,6 @@ mode = gpio.setmode
 board = gpio.BOARD
 setup = gpio.setup
 out = gpio.OUT
-output = gpio.output
 low = gpio.LOW
 high = gpio.HIGH
 clean = gpio.cleanup
