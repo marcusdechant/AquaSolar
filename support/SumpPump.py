@@ -1,5 +1,5 @@
 #!/bin/python3/AquaSolar
-script='SumpPump.dev.py'
+script='SumpPump.py'
 v='v2.0.1'
 author='Marcus Dechant (c)'
 verbose=('\n'+script+' - ('+v+') - '+author+'\n')
