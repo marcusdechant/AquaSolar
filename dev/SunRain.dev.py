@@ -24,10 +24,10 @@
 
 
 #Verbose
-name = 'sunRain.2.py'
+script = 'sunRain.2.py'
 v = 'v0.2.4'
 author = 'Marcus Dechant (c)'
-verbose = (name + ' (' + v + ') ' + author)
+verbose = (script + ' (' + v + ') ' + author)
 print('\n' + verbose + '\n')
 
 #Scheduler Docs 'https://schedule.readthedocs.io/en/stable/index.html'
