@@ -12,6 +12,7 @@
 #Accident - v0.2.1 - 22/06/21 - Basin Spillage - Caused by Inccorect Pump Pinning - Fixed v0.2.2
 #FATAL ERROR - 22/07/16 - v0.2.4 -  xcte('''INSERT INTO EVENTS (ID,EVENT,INFO,TIME,DATE) 
 #                                   sqlite3.IntegrityError: UNIQUE constraint failed: EVENTS.ID
+#Accident - v0.2.4 - 22/07/19 - Basin Spillage - Caused by unintended function call - Fixed v0.2.5
 
 #Dev Event Log
 #Conditionally operational - 22/06/20 - v0.2.1
@@ -21,13 +22,14 @@
 #file naming convention established. old, dev, live - 22/06/26 - v0.2.3
 #added verbose print on dev version - 22/06/26 - v0.2.3
 #added multi database for sun and rain records - 22/07/01 - v0.2.4
+#repaired unintedted function call - 22/07/19 - v0.2.5
 
 
 #Verbose
-script = 'sunRain.2.py'
-v = 'v0.2.4'
+name = 'sunRain.2.py'
+v = 'v0.2.5'
 author = 'Marcus Dechant (c)'
-verbose = (script + ' (' + v + ') ' + author)
+verbose = (name + ' (' + v + ') ' + author)
 print('\n' + verbose + '\n')
 
 #Scheduler Docs 'https://schedule.readthedocs.io/en/stable/index.html'
@@ -427,7 +429,6 @@ def sump():
         
         EID += 1
         wdID += 1
-        pTyme, pDate = pump()
         sTyme = datetime.now().strftime(tyme24)
         sDate = datetime.now().strftime(date)
         sumpInfo = (sumpDelay + ' seconds')
