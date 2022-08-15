@@ -12,7 +12,6 @@ framing
 ![Frame_Bottom](https://user-images.githubusercontent.com/103396632/184585551-39cfa531-c1c8-47b0-a66d-3df1aae50e21.png)
 
 Section 3:
-
 water cycle
 
 Section 4:
