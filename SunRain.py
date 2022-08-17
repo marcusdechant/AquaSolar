@@ -386,10 +386,10 @@ def sunOn():
     onTime=tyme()
     onDate=dayte()
     onInfo='LightOn'
-    print('\nLight is On, '+onTyme+', '+onDate+'.\n')
+    print('\nLight is On, '+onTime+', '+onDate+'.\n')
     xcte('''INSERT INTO EVENTS (ID,EVENT,INFO,TIME,DATE)
             VALUES(?,?,null,?,?)''',
-                  (EID, onInfo, onTyme, onDate))
+                  (EID, onInfo, onTime, onDate))
     comt()
     print(times)
 ON.every().day.at(sunrise).do(sunOn)
@@ -403,16 +403,16 @@ def sunOff():
     oput(p4, low)
     EID+=1
     sdID+=1
-    offTyme=tyme()
+    offTime=tyme()
     offDate=dayte()
     offInfo='LightOff'
-    print('\nLight is off, '+offTyme+', '+offDate+'.\n')
+    print('\nLight is off, '+offTime+', '+offDate+'.\n')
     xcte('''INSERT INTO EVENTS (ID,EVENT,INFO1,INFO2,TIME,DATE)
             VALUES(?,?,null,null,?,?)''',
-                  (EID, offInfo, offTyme, offDate))
+                  (EID, offInfo, offTime, offDate))
     xcte('''INSERT INTO SUN (DAY,SUNRISE,SUNSET,TIME,DATE)
             VALUES(?,?,?,?,?)''',
-                  (sdID, sunrise, sunset, offTyme, offDate))
+                  (sdID, sunrise, sunset, offTime, offDate))
     comt()
     print(times)
 OFF.every().day.at(sunset).do(sunOff)
