@@ -4,15 +4,15 @@
 #Autonomous Gardening Project
 #Marcus Dechant (c)
 #SunRain.dev.py
-#v2.7.2
+#v2.7.4
 
 #Scheduler Docs 'https://schedule.readthedocs.io/en/stable/index.html'
 
 #Verbose
 name='sunRain.dev.py'
-v='v2.7.2'
+v='v2.7.4'
 author='Marcus Dechant (c)'
-verbose=(name+' ('+v+') '+author)
+verbose=(name+' - ('+v+') - '+author)
 print('\n'+verbose+'\n')
 
 #Import List.
@@ -21,6 +21,12 @@ import sqlite3 as sql
 import time
 import schedule
 import os
+
+from sensors.sht import h
+from sensors.sht import t
+
+from sensor.pistat import cpu
+from sensor.pistat import load
 
 from datetime import datetime
 def tyme():
@@ -52,6 +58,7 @@ OFF=schedule.Scheduler()
 REMD=schedule.Scheduler()
 PUMP=schedule.Scheduler()
 SUMP=schedule.Scheduler()
+CLEAR=schedule.clear()
 
 #File System for output
 if not pathE(r'ASdb'):
@@ -327,6 +334,9 @@ DINFO = Sump pump run addional info
 EID=0 #Event ID
 sdID=0 #Sun day ID
 wdID=0 #Water day ID
+thsID=0 #Sensor 1 ID
+pisID=0 #Pi Onboard Sensor ID
+errID=0 #Error ID
 cnct=sql.connect
 database=(r'ASdb/aquasolar.db')
 db=cnct(database)
@@ -358,6 +368,32 @@ xcte('''CREATE TABLE IF NOT EXISTS RAIN(
         WINFO   TEXT    NOT NULL,
         DINFO   TEXT    NOT NULL,
         DATE    TEXT    NOT NULL);''')
+
+#WIP
+xcte('''CREATE TABLE IF NOT EXISTS SENSOR1(
+        ID      INT     NOT NULL    PRIMARY KEY,
+        TEMP    TEXT    NOT NULL,
+        HUMI    TEXT    NOT NULL,
+        TIME    TEXT    NOT NULL,
+        DATE    TEXT    NOT NULL);''')
+    
+#WIP    
+xcte('''CREATE TABLE IF NOT EXISTS PI_STATS(
+        ID          INT     NOT NULL    PRIMARY KEY,
+        CPUTEMP     REAL    NOT NULL,
+        AVELOAD     REAL    NOT NULL,
+        TIME        TEXT    NOT NULL,
+        DATE        TEXT    NOT NULL);''')
+    
+#WIP    
+xcte('''CREATE TABLE IF NOT EXISTS SENSOR_ERRORS(
+        ID      INT     NOT NULL    PRIMARY KEY,
+        LID     INT     NOT NULL,
+        CODE    TEXT    NOT NULL,
+        SENSOR  TEXT    NOT NULL,
+        TIME    TEXT    NOT NULL,
+        DATE    TEXT    NOT NULL,
+        INFO    TEXT`   NOT NULL);''')
         
 #Get last ID
 if(pathE(database)):
@@ -370,7 +406,17 @@ if(pathE(database)):
     wdIDlast=xcte('''SELECT DAY FROM RAIN''')
     for row in wdIDlast:
         wdID=int(row[0])
-print('\nASdb/aquasolar.db: Ready\nEID: '+str(EID))
+    thsIDlast=xcte('''SELECT ID FROM SENSOR1''')
+    for row in thsIDlast:
+        thsID=int(row[0])
+    pisIDlast=xcte('''SELECT ID FROM PI_STATS''')
+    for row in pisIDlast:
+       pisID=int(row[0])
+    errIDlast=xcte('''SELECT ID FROM PI_STATS''')
+    for row in errIDlast:
+       errID=int(row[0])
+       
+print('\nASdb/aquasolar.db: Ready\nEID: '+str(EID)+'\n')
 
 def remindOnce():
     STOPJOB=schedule.CancelJob
@@ -416,6 +462,58 @@ def sunOff():
     comt()
     print(times)
 OFF.every().day.at(sunset).do(sunOff)
+
+#Temperature and Humidity Sensor
+def sensor_ths():
+    global thsID
+    try:
+        temp=t()
+        humi=h()
+        if(temp is None)or(humi is None):
+            temp='err1'
+            humi='ths'
+            info='Null Reading'
+            fail=True
+        else:
+            fail=False
+    except(OSError):
+        temp='err2'
+        humi='ths'
+        info='OSError'
+        fail=True
+    except(RuntimeError):
+        temp='err3'
+        humi='ths'
+        info='RuntimeError'
+        Fail=True
+    thsTime=tyme()
+    thsDate=dayte()
+    thsID+=1
+    if(fail is False):
+        xcte('''INSERT INTO SENSOR1 (ID,TEMP,HUMI,TIME,DATE)
+                VALUES(?,?,?,?,?)'''
+                      (thsID, temp, humi, thsTime, thsDate))
+    else:
+        errID+=1
+        xcte('''INSERT INTO SENSOR_ERRORS (ID,LID,CODE,SENSOR,TIME,DATE,INFO)
+                VALUES(?,?,?,?,?,?,?)'''
+                      (errID, thsID, temp, humi, thsTime, thsDate, info))
+    comt()         
+THS.every(5).minutes.do(sensor_ths)
+
+#rpi cpu temp
+def sensor_pi():
+    global pisID
+    cpu=cpu()
+    load=load()
+    pisID+=1
+    pisTime=tyme()
+    pisDate=dayte()
+    xcte('''INSERT INTO PI_STATS (ID,CPUTEMP,AVELOAD,TIME,DATE)
+            VALUES(?,?,?,?,?)'''
+                  (pisID, cpu, load, pisTime, pisDate))
+    comt()
+PIS.every(5).minutes.do(sensor_pi)
 
 #Pump Controls
 def pump():
@@ -488,6 +586,8 @@ if('saturday' in dayList):
 #MAIN
 while(True):
     try:
+        THS.run_pending()
+        PIS.run_pending()
         REMD.run_pending()
         ON.run_pending()
         OFF.run_pending()
@@ -500,5 +600,6 @@ while(True):
         oput(p2, high)
         clse()
         clean()
+        CLEAR()
         break
 exit(0)
