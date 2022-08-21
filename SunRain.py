@@ -4,13 +4,13 @@
 #Autonomous Gardening Project
 #Marcus Dechant (c)
 #SunRain.dev.py
-#v2.7.4
+#v2.7.5
 
 #Scheduler Docs 'https://schedule.readthedocs.io/en/stable/index.html'
 
 #Verbose
 name='sunRain.dev.py'
-v='v2.7.4'
+v='v2.7.5'
 author='Marcus Dechant (c)'
 verbose=(name+' - ('+v+') - '+author)
 print('\n'+verbose+'\n')
@@ -25,15 +25,15 @@ import os
 from sensors.sht import h
 from sensors.sht import t
 
-from sensor.pistat import cpu
-from sensor.pistat import load
+from sensors.pistat import cpu
+from sensors.pistat import load
 
 from datetime import datetime
 def tyme():
-    tyme=datetime.now().strftime('%d/%m/%Y')
+    tyme=datetime.now().strftime('%H:%M:%S')
     return(tyme)
 def dayte():
-    dayte=datetime.now().strftime('%H:%M:%S')
+    dayte=datetime.now().strftime('%d/%m/%Y')
     return(dayte)
 
 #Constructors
@@ -58,15 +58,14 @@ OFF=schedule.Scheduler()
 REMD=schedule.Scheduler()
 PUMP=schedule.Scheduler()
 SUMP=schedule.Scheduler()
+THS=schedule.Scheduler()
+PIS=schedule.Scheduler()
 CLEAR=schedule.clear()
 
 #File System for output
 if not pathE(r'ASdb'):
     mkdir('ASdb')
     print('\n\ASdb : Good')
-if not pathE(r'ASdb/SR'):
-    mkdir('ASdb/SR')
-    print('\n\ASdb\SR : Good\n')
 
 #Relay Constructors
 warn = gpio.setwarnings
@@ -78,6 +77,8 @@ oput = gpio.output
 high = gpio.HIGH
 low =  gpio.LOW
 clean = gpio.cleanup
+
+#ASR3 will require 2 more Relay Channels
 
 #Relay
 warn(False) #True for Relay Warnings
@@ -94,6 +95,9 @@ oput(p3, high) #Pump off
 oput(p2, high) #Sump off
 #make auto configuring
 oput(p4, high) #high = Light on, low = Light off
+
+c=','
+sensorDelay=300
 
 #Light Scheduling
 """
@@ -301,6 +305,7 @@ else:
     times=('Sunrise at '+sunrise12+'. Sunset at '+sunset12+'. No Watering Scheduled.')
     
 #Print verification
+print()
 print(sunrise12)
 print(sunset12)
 print(weekList)
@@ -327,7 +332,9 @@ DAY = wdID, water day ID (integer variable)
 WATER = Water pump run time
 DRAIN = Sump pump run time
 WINFO = Water pump run addional info
-DINFO = Sump pump run addional info 
+DINFO = Sump pump run addional info
+
+
 """
 
 #Database variables
@@ -360,7 +367,7 @@ xcte('''CREATE TABLE IF NOT EXISTS SUN(
         TIME        TEXT    NOT NULL,
         DATE        TEXT    NOT NULL);''')
 
-#WIP
+#WIP   
 xcte('''CREATE TABLE IF NOT EXISTS RAIN(
         DAY     INT     NOT NULL    PRIMARY KEY,
         WATER   INT     NOT NULL,
@@ -368,32 +375,33 @@ xcte('''CREATE TABLE IF NOT EXISTS RAIN(
         WINFO   TEXT    NOT NULL,
         DINFO   TEXT    NOT NULL,
         DATE    TEXT    NOT NULL);''')
-
-#WIP
+        
 xcte('''CREATE TABLE IF NOT EXISTS SENSOR1(
         ID      INT     NOT NULL    PRIMARY KEY,
+        DELAY   INT     NOT NULL,
         TEMP    TEXT    NOT NULL,
         HUMI    TEXT    NOT NULL,
         TIME    TEXT    NOT NULL,
         DATE    TEXT    NOT NULL);''')
-    
-#WIP    
+        
 xcte('''CREATE TABLE IF NOT EXISTS PI_STATS(
         ID          INT     NOT NULL    PRIMARY KEY,
+        DELAY       INT     NOT NULL,
         CPUTEMP     REAL    NOT NULL,
         AVELOAD     REAL    NOT NULL,
         TIME        TEXT    NOT NULL,
         DATE        TEXT    NOT NULL);''')
-    
+
 #WIP    
 xcte('''CREATE TABLE IF NOT EXISTS SENSOR_ERRORS(
         ID      INT     NOT NULL    PRIMARY KEY,
         LID     INT     NOT NULL,
+        DELAY   INT     NOT NULL,
         CODE    TEXT    NOT NULL,
         SENSOR  TEXT    NOT NULL,
         TIME    TEXT    NOT NULL,
         DATE    TEXT    NOT NULL,
-        INFO    TEXT`   NOT NULL);''')
+        INFO    TEXT    NOT NULL);''')
         
 #Get last ID
 if(pathE(database)):
@@ -412,20 +420,14 @@ if(pathE(database)):
     pisIDlast=xcte('''SELECT ID FROM PI_STATS''')
     for row in pisIDlast:
        pisID=int(row[0])
-    errIDlast=xcte('''SELECT ID FROM PI_STATS''')
+    errIDlast=xcte('''SELECT ID FROM SENSOR_ERRORS''')
     for row in errIDlast:
        errID=int(row[0])
        
-print('\nASdb/aquasolar.db: Ready\nEID: '+str(EID)+'\n')
-
-def remindOnce():
-    STOPJOB=schedule.CancelJob
-    print(times)
-    return(STOPJOB)
-REMD.every().second.do(remindOnce)
+print('\nASdb/aquasolar.db: Ready\n')
 
 #Light On
-def sunOn():
+def sun_on():
     global EID
     oput(p4, high)
     EID+=1
@@ -438,10 +440,10 @@ def sunOn():
                   (EID, onInfo, onTime, onDate))
     comt()
     print(times)
-ON.every().day.at(sunrise).do(sunOn)
+ON.every().day.at(sunrise).do(sun_on)
 
 #Light Off
-def sunOff():
+def sun_off():
     global EID
     global sdID
     global sunrise
@@ -461,11 +463,14 @@ def sunOff():
                   (sdID, sunrise, sunset, offTime, offDate))
     comt()
     print(times)
-OFF.every().day.at(sunset).do(sunOff)
+OFF.every().day.at(sunset).do(sun_off)
+
+#Planning for more sensors with ASR3 
 
 #Temperature and Humidity Sensor
 def sensor_ths():
     global thsID
+    global errID
     try:
         temp=t()
         humi=h()
@@ -485,35 +490,37 @@ def sensor_ths():
         temp='err3'
         humi='ths'
         info='RuntimeError'
-        Fail=True
+        fail=True
     thsTime=tyme()
     thsDate=dayte()
     thsID+=1
     if(fail is False):
-        xcte('''INSERT INTO SENSOR1 (ID,TEMP,HUMI,TIME,DATE)
-                VALUES(?,?,?,?,?)'''
-                      (thsID, temp, humi, thsTime, thsDate))
+        xcte('''INSERT INTO SENSOR1 (ID,DELAY,TEMP,HUMI,TIME,DATE)
+                VALUES(?,?,?,?,?,?)''',
+                      (thsID, sensorDelay, temp, humi, thsTime, thsDate))
     else:
         errID+=1
-        xcte('''INSERT INTO SENSOR_ERRORS (ID,LID,CODE,SENSOR,TIME,DATE,INFO)
-                VALUES(?,?,?,?,?,?,?)'''
-                      (errID, thsID, temp, humi, thsTime, thsDate, info))
-    comt()         
-THS.every(5).minutes.do(sensor_ths)
+        xcte('''INSERT INTO SENSOR_ERRORS (ID,LID,DELAY,CODE,SENSOR,TIME,DATE,INFO)
+                VALUES(?,?,?,?,?,?,?,?)''',
+                      (thsID, errID, sensorDelay, temp, humi, thsTime, thsDate, info))
+    comt()
+    #print(str(thsID)+c+temp+c+humi+c+thsTime+c+thsDate)
+THS.every(sensorDelay).seconds.do(sensor_ths)
 
 #rpi cpu temp
 def sensor_pi():
     global pisID
-    cpu=cpu()
-    load=load()
+    cputemp=cpu()
+    loadave=load()
     pisID+=1
     pisTime=tyme()
     pisDate=dayte()
-    xcte('''INSERT INTO PI_STATS (ID,CPUTEMP,AVELOAD,TIME,DATE)
-            VALUES(?,?,?,?,?)'''
-                  (pisID, cpu, load, pisTime, pisDate))
+    xcte('''INSERT INTO PI_STATS (ID,DELAY,CPUTEMP,AVELOAD,TIME,DATE)
+            VALUES(?,?,?,?,?,?)''',
+                  (pisID, sensorDelay, cputemp, loadave, pisTime, pisDate))
     comt()
-PIS.every(5).minutes.do(sensor_pi)
+    #print(str(pisID)+c+cputemp+c+loadave+c+pisTime+c+pisDate)
+PIS.every(sensorDelay).seconds.do(sensor_pi)
 
 #Pump Controls
 def pump():
@@ -583,12 +590,20 @@ if('saturday' in dayList):
     PUMP.every().saturday.at(rain).do(pump)
     SUMP.every().sunday.at(drain).do(sump)
 
+def remind_once():
+    STOPJOB=schedule.CancelJob
+    print(times)
+    sensor_ths()
+    sensor_pi()
+    return(STOPJOB)
+REMD.every().second.do(remind_once)
+
 #MAIN
 while(True):
     try:
+        REMD.run_pending()
         THS.run_pending()
         PIS.run_pending()
-        REMD.run_pending()
         ON.run_pending()
         OFF.run_pending()
         if(pump!=0):
@@ -600,6 +615,5 @@ while(True):
         oput(p2, high)
         clse()
         clean()
-        CLEAR()
         break
 exit(0)
