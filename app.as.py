@@ -1,10 +1,10 @@
 #!/bin/python3/AquaSolar
 
-#Project AquaSolar
+#AquaSolar
 #Autonomous Gradening Project
 #Marcus Dechant (c)
 #app.as.py
-#v0.0.3
+#v0.0.5
 
 import sqlite3 as sql
 import os
@@ -57,20 +57,20 @@ def pi_stats_all():
     clse=db.close
     xaxis=request.args.get('x')
     try:
-        curs=xcte('''SELECT ID,CPUTEMP,AVELOAD FROM PI_STATS PI_STATS ORDER BY LID DESC LIMIT %s''' %xaxis)
+        curs=xcte('''SELECT ID, CPUTEMP, AVELOAD FROM PI_STATS ORDER BY ID DESC LIMIT %s''' %xaxis)
     except:
         xaxis=(-1)
-        curs=xcte('''SELECT ID,CPUTEMP,AVELOAD FROM PI_STATS FROM PI_STATS ORDER BY LID DESC LIMIT %s''' %xaxis)
+        curs=xcte('''SELECT ID, CPUTEMP, AVELOAD FROM PI_STATS ORDER BY ID DESC LIMIT %s''' %xaxis)
     data=reversed(curs.fetchall())
-    ridAll=[]
+    ridAll1=[]
     cpuTempAll=[]
     loadAveAll=[]
     for row in data:
-        ridAll.append(row[0])
+        ridAll1.append(row[0])
         cpuTempAll.append(row[1])
         loadAveAll.append(row[2])
     clse()
-    return(ridAll,cpuTempAll,loadAveAll,xaxis)
+    return(ridAll1,cpuTempAll,loadAveAll,xaxis)
 
 def sensor_one_all():
     db=conn(database)
@@ -78,33 +78,39 @@ def sensor_one_all():
     clse=db.close
     xaxis=request.args.get('x')
     try:
-        curs=xcte('''SELECT ID,TEMP,HUMI FROM PI_STATS SENSOR1 ORDER BY LID DESC LIMIT %s''' %xaxis)
+        curs=xcte('''SELECT ID, TEMP, HUMI FROM SENSOR1 ORDER BY ID DESC LIMIT %s''' %xaxis)
     except:
         xaxis=(-1)
-        curs=xcte('''SELECT ID,TEMP,HUMI FROM SENSOR1 FROM PI_STATS ORDER BY LID DESC LIMIT %s''' %xaxis)
+        curs=xcte('''SELECT ID, TEMP, HUMI FROM SENSOR1 ORDER BY ID DESC LIMIT %s''' %xaxis)
     data=reversed(curs.fetchall())
-    ridAll=[]
+    ridAll2=[]
     tempAll=[]
     humiAll=[]
     for row in data:
-        ridAll.append(row[0])
-        tempAll.append(row[1])
-        humiAll.append(row[2])
+        ridAll2.append(int(row[0]))
+        tempAll.append(float(row[1]))
+        humiAll.append(float(row[2]))
     clse()
-    (ridAll,tempAll,humiAll,xaxis)
+    return(ridAll2,tempAll,humiAll,xaxis)
 
 #/
 @app.route('/', methods=['GET'])
 def gauge():
     (rid,delay,cpuTemp,loadAve,time,date)=pi_stats_single()
     (temp,humi)=sensor_one_single()
-    rV=(int(delay)*1000)
+    
+    delay=int(delay)
     base=delay*12
-    x1=(int(base)/int(delay))
+    x1=base/delay
+    x3=int(x1*3)
     x24=int(x1*24)
+    rV=int(delay*1000)
+    
     gaugeData={'ID':rid, 'DELAY':delay, 'TIME':time, 'DATE':date,
                'CPUTEMP':cpuTemp, 'CPULOAD':loadAve, 'TEMP':temp,
-               'HUMI':humi, 'refreshValue':rV, 'x1':x1, 'x24':x24, 'ex':None}
+               'HUMI':humi, 'refreshValue':rV, 'xR':x3, 'xG':x24, 
+               'ex':None}
+               
     return(template('gauge.html', **gaugeData)), 200
     
 #/graph
@@ -112,11 +118,12 @@ def gauge():
 def graph():
     (rid,delay,cpuTemp,loadAve,time,date)=pi_stats_single()
     (temp,humi)=sensor_one_single()
-    (ridAll1,cpuTempAll,loadAveAll)=pi_stats_single()
-    (ridAll2,tempAll,humiAll)=sensor_one_single()
-    rV=delay*1000
-    base=delay*12
-    xH=int((int(xaxis)/base)*delay)
+    (ridAll,tempAll,humiAll,xaxis)=sensor_one_all()
+    
+    xaxis=int(xaxis)
+    delay=int(delay)
+    base=int(delay*12)
+    xH=int((xaxis/base)*delay)
     if(xH==0):
         xH='ALL'
     x1=int(base/delay)
@@ -126,12 +133,71 @@ def graph():
     x24=int(x1*24) #x1*24 = 24 hours
     xW=int(x24*7) #x24*7 = 7 days
     x4W=int(xW*4) #x7*4 = 4 weeks
-    graphData={'ID1':ridAll1, 'ID2':ridAll2, 'ID':rid, 'CPUTEMPGR':cpuTempAll,
-               'CPULOADGR':loadAveAll, 'TEMPGR':tempAll, 'HUMIGR':humiAll,
-               'CPUTEMP':cpuTemp, 'CPULOAD':loadAve, 'TEMP':temp, 'HUMI':humi,
+    rV=int(delay*1000)
+    
+    graphData={'RID':ridAll, 'ID':rid, 'DELAY':delay, 
+               'TEMPGR':tempAll, 'HUMIGR':humiAll, 'TEMP':temp, 'HUMI':humi,
                'refreshValue':rV, 'xH':xH, 'x1':x1, 'x3':x3, 'x6':x6, 
                'x12':x12, 'x24':x24, 'xW':xW,  'x4W':x4W, 'ex':None}
+               
     return(template('graph.html', **graphData)), 200
+
+#/graphs
+@app.route('/graphs', methods=['GET'])
+def indv_graph():
+    (rid,delay,cpuTemp,loadAve,time,date)=pi_stats_single()
+    (temp,humi)=sensor_one_single()
+    (ridAll,tempAll,humiAll,xaxis)=sensor_one_all()
+    
+    xaxis=int(xaxis)
+    delay=int(delay)
+    base=delay*12
+    xH=int((xaxis/base)*delay)
+    if(xH==0):
+        xH='ALL'
+    x1=int(base/delay)
+    x3=int(x1*3) #x1*3 = 3 hours
+    x6=int(x1*6) #x1*6 = 6 hours
+    x12=int(x1*12) #x1*12 = 12 hours
+    x24=int(x1*24) #x1*24 = 24 hours
+    xW=int(x24*7) #x24*7 = 7 days
+    x4W=int(xW*4) #x7*4 = 4 weeks
+    rV=int(delay*1000)
+    
+    graphData={'RID':ridAll, 'ID':rid, 'DELAY':delay, 
+               'TEMPGR':tempAll, 'HUMIGR':humiAll, 'TEMP':temp, 'HUMI':humi,
+               'refreshValue':rV, 'xH':xH, 'x1':x1, 'x3':x3, 'x6':x6, 
+               'x12':x12, 'x24':x24, 'xW':xW,  'x4W':x4W, 'ex':None}
+               
+    return(template('indgraphs.html', **graphData)), 200
+
+#/pistats
+@app.route('/pistats', methods=['GET'])
+def pi_stats():
+    (rid,delay,cpuTemp,loadAve,time,date)=pi_stats_single()
+    (ridAll,cpuTempAll,loadAveAll,xaxis)=pi_stats_all()
+    
+    xaxis=int(xaxis)
+    delay=int(delay)
+    base=delay*12
+    xH=int((xaxis/base)*delay)
+    if(xH==0):
+        xH='ALL'
+    x1=int(base/delay)
+    x3=int(x1*3) #x1*3 = 3 hours
+    x6=int(x1*6) #x1*6 = 6 hours
+    x12=int(x1*12) #x1*12 = 12 hours
+    x24=int(x1*24) #x1*24 = 24 hours
+    xW=int(x24*7) #x24*7 = 7 days
+    x4W=int(xW*4) #x7*4 = 4 weeks
+    rV=int(delay*1000)
+    
+    graphData={'RID':ridAll, 'ID':rid, 'DELAY':delay, 'CPUTEMPGR':cpuTempAll,
+               'CPULOADGR':loadAveAll, 'CPUTEMP':cpuTemp, 'CPULOAD':loadAve, 
+               'refreshValue':rV, 'xH':xH, 'x1':x1, 'x3':x3, 'x6':x6, 'x12':x12, 
+               'x24':x24, 'xW':xW,  'x4W':x4W, 'ex':None}
+               
+    return(template('pistats.html', **graphData)), 200
 
 @app.route('/graph', methods=['POST','GET'])
 def graph_input():
@@ -140,6 +206,22 @@ def graph_input():
         inputData={'x':xID}
         return(redirect(url4('graph_input', **inputData))), 302
     return(template('graph.html')), 201
+
+@app.route('/graphs', methods=['POST','GET'])
+def indv_graph_input():
+    if(request.method=='POST'):
+        xID=request.form['x']
+        inputData={'x':xID}
+        return(redirect(url4('indv_graph_input', **inputData))), 302
+    return(template('indgraphs.html')), 201
+
+@app.route('/pistats', methods=['POST','GET'])
+def pi_stats_input():
+    if(request.method=='POST'):
+        xID=request.form['x']
+        inputData={'x':xID}
+        return(redirect(url4('pi_stats_input', **inputData))), 302
+    return(template('pistats.html')), 201
 
 if(__name__=='__main__'):
     app.run(host='192.168.1.12', port=5002, debug=True)
