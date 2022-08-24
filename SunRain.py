@@ -1,50 +1,50 @@
-#!/bin/python3/AquaSolar/Development
+#!/bin/python3/AquaSolar
 
 #AquaSolar
 #Autonomous Gardening Project
 #Marcus Dechant (c)
-#SunRain.dev.py
-#v2.7.5
+#SunRain.py
+#v2.7.7
 
 #Scheduler Docs 'https://schedule.readthedocs.io/en/stable/index.html'
 
-#Verbose
-name='sunRain.dev.py'
-v='v2.7.5'
-author='Marcus Dechant (c)'
-verbose=(name+' - ('+v+') - '+author)
+name='SunRain.py'
+v='v2.7.7'
+cpyr=u'\u00A9'
+year=' 2022'
+author=' Marcus Dechant'
+verbose=(name+' - '+v+' - '+cpyr+year+author)
 print('\n'+verbose+'\n')
 
-#Import List.
 import RPi.GPIO as gpio
 import sqlite3 as sql
-import time
 import schedule
 import os
 
-from sensors.sht import h
-from sensors.sht import t
+from time import sleep
 
-from sensors.pistat import cpu
-from sensors.pistat import load
+from lib.sht import h
+from lib.sht import t
 
-from datetime import datetime
-def tyme():
-    tyme=datetime.now().strftime('%H:%M:%S')
-    return(tyme)
-def dayte():
-    dayte=datetime.now().strftime('%d/%m/%Y')
-    return(dayte)
+from lib.pistat import cpu
+from lib.pistat import load
+
+from lib.dt import tyme
+from lib.dt import dayte
+from datetime import datetime as dt
 
 #Constructors
 lower=str.lower
-sleep=time.sleep
 pathE=os.path.exists
 mkdir=os.mkdir
 
+#Universal Variables
+c=','
+sensorDelay=300
+
 #Datetime
-pTime=datetime.strptime
-fTime=datetime.strftime
+pTime=dt.strptime
+fTime=dt.strftime
 #Datetime Variables
 clock24='%H:%M'
 clock12='%I:%M %p'
@@ -53,19 +53,11 @@ tyme12='%I:%M:%S %p'
 date='%d/%m/%y'
 
 #Scheduler Initalization
-ON=schedule.Scheduler()
-OFF=schedule.Scheduler()
-REMD=schedule.Scheduler()
+LIGHT=schedule.Scheduler()
 PUMP=schedule.Scheduler()
 SUMP=schedule.Scheduler()
-THS=schedule.Scheduler()
-PIS=schedule.Scheduler()
-CLEAR=schedule.clear()
-
-#File System for output
-if not pathE(r'ASdb'):
-    mkdir('ASdb')
-    print('\n\ASdb : Good')
+SENS=schedule.Scheduler()
+REMD=schedule.Scheduler()
 
 #Relay Constructors
 warn = gpio.setwarnings
@@ -93,11 +85,25 @@ setup(p2, out)
 setup(p1, out)
 oput(p3, high) #Pump off
 oput(p2, high) #Sump off
-#make auto configuring
-oput(p4, high) #high = Light on, low = Light off
 
-c=','
-sensorDelay=300
+devUin='Day (1), Night (0):\n'
+badUout='Error: Bad input!\n'
+onUout='Light On\n'
+offUout='Light Off\n'
+
+while(True):
+    dn=input(devUin)
+    if(dn=='1'):
+        oput(p4, high)
+        print(onUout)
+        break
+    elif(dn=='0'):
+        oput(p4, low)
+        print(offUout)
+        break
+    else:
+        print(badUout)
+        continue
 
 #Light Scheduling
 """
@@ -303,14 +309,6 @@ else:
     drain=rain
     rain12='null'
     times=('Sunrise at '+sunrise12+'. Sunset at '+sunset12+'. No Watering Scheduled.')
-    
-#Print verification
-print()
-print(sunrise12)
-print(sunset12)
-print(weekList)
-print(rain12)
-print(str(pumpRun))
 
 #SQLite3 Database
 """
@@ -336,6 +334,11 @@ DINFO = Sump pump run addional info
 
 
 """
+
+#File System for output
+if not pathE(r'ASdb'):
+    mkdir('ASdb')
+    print('\n\ASdb : Good')
 
 #Database variables
 EID=0 #Event ID
@@ -364,7 +367,6 @@ xcte('''CREATE TABLE IF NOT EXISTS SUN(
         DAY         INT     NOT NULL    PRIMARY KEY,
         SUNRISE     TEXT    NOT NULL,
         SUNSET      TEXT    NOT NULL,
-        TIME        TEXT    NOT NULL,
         DATE        TEXT    NOT NULL);''')
 
 #WIP   
@@ -435,12 +437,12 @@ def sun_on():
     onDate=dayte()
     onInfo='LightOn'
     print('\nLight is On, '+onTime+', '+onDate+'.\n')
-    xcte('''INSERT INTO EVENTS (ID,EVENT,INFO,TIME,DATE)
-            VALUES(?,?,null,?,?)''',
+    xcte('''INSERT INTO EVENTS (ID,EVENT,INFO1,INFO2,TIME,DATE)
+            VALUES(?,?,null,null,?,?)''',
                   (EID, onInfo, onTime, onDate))
     comt()
     print(times)
-ON.every().day.at(sunrise).do(sun_on)
+LIGHT.every().day.at(sunrise).do(sun_on)
 
 #Light Off
 def sun_off():
@@ -458,12 +460,12 @@ def sun_off():
     xcte('''INSERT INTO EVENTS (ID,EVENT,INFO1,INFO2,TIME,DATE)
             VALUES(?,?,null,null,?,?)''',
                   (EID, offInfo, offTime, offDate))
-    xcte('''INSERT INTO SUN (DAY,SUNRISE,SUNSET,TIME,DATE)
-            VALUES(?,?,?,?,?)''',
-                  (sdID, sunrise, sunset, offTime, offDate))
+    xcte('''INSERT INTO SUN (DAY,SUNRISE,SUNSET,DATE)
+            VALUES(?,?,?,?)''',
+                  (sdID, sunrise, sunset, offDate))
     comt()
     print(times)
-OFF.every().day.at(sunset).do(sun_off)
+LIGHT.every().day.at(sunset).do(sun_off)
 
 #Planning for more sensors with ASR3 
 
@@ -505,7 +507,7 @@ def sensor_ths():
                       (thsID, errID, sensorDelay, temp, humi, thsTime, thsDate, info))
     comt()
     #print(str(thsID)+c+temp+c+humi+c+thsTime+c+thsDate)
-THS.every(sensorDelay).seconds.do(sensor_ths)
+SENS.every(sensorDelay).seconds.do(sensor_ths)
 
 #rpi cpu temp
 def sensor_pi():
@@ -520,7 +522,7 @@ def sensor_pi():
                   (pisID, sensorDelay, cputemp, loadave, pisTime, pisDate))
     comt()
     #print(str(pisID)+c+cputemp+c+loadave+c+pisTime+c+pisDate)
-PIS.every(sensorDelay).seconds.do(sensor_pi)
+SENS.every(sensorDelay).seconds.do(sensor_pi)
 
 #Pump Controls
 def pump():
@@ -570,25 +572,25 @@ def sump():
         
 if('sunday' in dayList):
     PUMP.every().sunday.at(rain).do(pump)
-    SUMP.every().monday.at(drain).do(sump)
+    PUMP.every().monday.at(drain).do(sump)
 if('monday' in dayList):
     PUMP.every().monday.at(rain).do(pump)
-    SUMP.every().tuesday.at(drain).do(sump)
+    PUMP.every().tuesday.at(drain).do(sump)
 if('tuesday' in dayList):
     PUMP.every().tuesday.at(rain).do(pump)
-    SUMP.every().wednesday.at(drain).do(sump)
+    PUMP.every().wednesday.at(drain).do(sump)
 if('wednesday' in dayList):
     PUMP.every().wednesday.at(rain).do(pump)
-    SUMP.every().thursday.at(drain).do(sump)
+    PUMP.every().thursday.at(drain).do(sump)
 if('thursday' in dayList):
     PUMP.every().thursday.at(rain).do(pump)
-    SUMP.every().friday.at(drain).do(sump)
+    PUMP.every().friday.at(drain).do(sump)
 if('friday' in dayList):
     PUMP.every().friday.at(rain).do(pump)
-    SUMP.every().saturday.at(drain).do(sump)
+    PUMP.every().saturday.at(drain).do(sump)
 if('saturday' in dayList):
     PUMP.every().saturday.at(rain).do(pump)
-    SUMP.every().sunday.at(drain).do(sump)
+    PUMP.every().sunday.at(drain).do(sump)
 
 def remind_once():
     STOPJOB=schedule.CancelJob
@@ -602,13 +604,10 @@ REMD.every().second.do(remind_once)
 while(True):
     try:
         REMD.run_pending()
-        THS.run_pending()
-        PIS.run_pending()
-        ON.run_pending()
-        OFF.run_pending()
+        SENS.run_pending()
+        LIGHT.run_pending()
         if(pump!=0):
             PUMP.run_pending()
-            SUMP.run_pending()
         sleep(1)
     except KeyboardInterrupt:
         oput(p3, high)
