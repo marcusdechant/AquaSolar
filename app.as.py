@@ -4,10 +4,16 @@
 #Autonomous Gradening Project
 #Marcus Dechant (c)
 #app.as.py
-#v0.0.5
+#v0.0.8
 
-import sqlite3 as sql
 import os
+
+from psycopg2 import connect as ct
+db='aquasolar'
+u='as_pi'
+psswd='growIn3'
+host='127.0.0.1'
+port=5432
 
 from flask import Flask
 from flask import render_template as template
@@ -17,18 +23,21 @@ from flask import redirect
 from flask import url_for as url4
 
 from werkzeug.utils import secure_filename
-
-conn=sql.connect
-database=r'./ASdb/aquasolar.db'
-    
+  
 app=Flask(__name__)
 
+def db_conn():
+    conn=ct(database=db,user=u,password=psswd,host=host,port=port)
+    cls=conn.close
+    helm=conn.cursor()
+    exe=helm.execute
+    fa=helm.fetchall
+    return(cls,exe,fa)
+
 def pi_stats_single():
-    db=conn(database)
-    xcte=db.execute
-    clse=db.close
-    curs=xcte('''SELECT ID,DELAY,CPUTEMP,AVELOAD,TIME,DATE FROM PI_STATS''')
-    data=curs.fetchall()
+    (cls,exe,fa)=db_conn()
+    exe('''SELECT * FROM SENSOR_PI''')
+    data=fa()
     for row in data:
         rid=str(row[0])
         delay=str(row[1])
@@ -36,32 +45,28 @@ def pi_stats_single():
         loadAve=str(row[3])
         time=str(row[4])
         date=str(row[5])
-    clse()
+    cls()
     return(rid,delay,cpuTemp,loadAve,time,date)
 
 def sensor_one_single():
-    db=conn(database)
-    xcte=db.execute
-    clse=db.close
-    curs=xcte('''SELECT TEMP,HUMI FROM SENSOR1''')
-    data=curs.fetchall()
+    (cls,exe,fa)=db_conn()
+    exe('''SELECT TEMP,HUMI FROM SENSOR_TH''')
+    data=fa()
     for row in data:
         temp=str(row[0])
         humi=str(row[1])
-    clse()
+    cls()
     return(temp,humi)
 
 def pi_stats_all():
-    db=conn(database)
-    xcte=db.execute
-    clse=db.close
+    (cls,exe,fa)=db_conn()
     xaxis=request.args.get('x')
     try:
-        curs=xcte('''SELECT ID, CPUTEMP, AVELOAD FROM PI_STATS ORDER BY ID DESC LIMIT %s''' %xaxis)
+        exe('''SELECT ID, CPUT, CPUL FROM SENSOR_PI ORDER BY ID DESC LIMIT %s''' %xaxis)
     except:
         xaxis=(-1)
-        curs=xcte('''SELECT ID, CPUTEMP, AVELOAD FROM PI_STATS ORDER BY ID DESC LIMIT %s''' %xaxis)
-    data=reversed(curs.fetchall())
+        exe('''SELECT ID, CPUT, CPUL FROM SENSOR_PI ORDER BY ID DESC LIMIT %s''' %xaxis)
+    data=reversed(fa())
     ridAll1=[]
     cpuTempAll=[]
     loadAveAll=[]
@@ -69,20 +74,18 @@ def pi_stats_all():
         ridAll1.append(row[0])
         cpuTempAll.append(row[1])
         loadAveAll.append(row[2])
-    clse()
+    cls()
     return(ridAll1,cpuTempAll,loadAveAll,xaxis)
 
 def sensor_one_all():
-    db=conn(database)
-    xcte=db.execute
-    clse=db.close
+    (cls,exe,fa)=db_conn()
     xaxis=request.args.get('x')
     try:
-        curs=xcte('''SELECT ID, TEMP, HUMI FROM SENSOR1 ORDER BY ID DESC LIMIT %s''' %xaxis)
+        exe('''SELECT ID, TEMP, HUMI FROM SENSOR_TH ORDER BY ID DESC LIMIT %s''' %xaxis)
     except:
         xaxis=(-1)
-        curs=xcte('''SELECT ID, TEMP, HUMI FROM SENSOR1 ORDER BY ID DESC LIMIT %s''' %xaxis)
-    data=reversed(curs.fetchall())
+        exe('''SELECT ID, TEMP, HUMI FROM SENSOR_TH ORDER BY ID DESC LIMIT %s''' %xaxis)
+    data=reversed(fa())
     ridAll2=[]
     tempAll=[]
     humiAll=[]
@@ -90,7 +93,7 @@ def sensor_one_all():
         ridAll2.append(int(row[0]))
         tempAll.append(float(row[1]))
         humiAll.append(float(row[2]))
-    clse()
+    cls()
     return(ridAll2,tempAll,humiAll,xaxis)
 
 #/
